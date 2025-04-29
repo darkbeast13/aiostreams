@@ -219,9 +219,7 @@ export class BaseWrapper {
         message = `The stream request to ${this.addonName} timed out after ${this.indexerTimeout}ms`;
         return Promise.reject(message);
       }
-      const errorMessage = error.stack || String(error);
-      logger.error(`Error fetching streams from ${this.addonName}`);
-      logger.error(errorMessage);
+      logger.error(`Error fetching streams from ${this.addonName}: ${message}`);
       return Promise.reject(error.message);
     }
   }
@@ -422,7 +420,7 @@ export class BaseWrapper {
     services.forEach((service) => {
       // for each service, generate a regexp which creates a regex with all known names separated by |
       const regex = new RegExp(
-        `(^|(?<![^ |[(_\\/\\-.]))(${service.knownNames.join('|')})(?=[ ⬇️⏳⚡+/|\\)\\]_.-]|$)`,
+        `(^|(?<![^ |[(_\\/\\-.]))(${service.knownNames.join('|')})(?=[ ⬇️⏳⚡+/|\\)\\]_.-]|$|\n)`,
         'i'
       );
       // check if the string contains the regex

@@ -11,6 +11,7 @@ import {
   getOrionStreams,
   getPeerflixStreams,
   getStremioJackettStreams,
+  getStremThruStoreStreams,
   getTorboxStreams,
   getTorrentioStreams,
 } from '@aiostreams/wrappers';
@@ -738,12 +739,19 @@ export class AIOStreams {
             ? -1
             : 1; // cached > uncached
       }
-    } else if (field === 'hasProvider') {
-      // files from a provider should be prioritised and then
-      let aHasProvider = a.provider;
-      let bHasProvider = b.provider;
-      if (aHasProvider && !bHasProvider) return -1;
-      if (!aHasProvider && bHasProvider) return 1;
+    } else if (field === 'personal') {
+      // depending on direction, sort by personal or not personal
+      const direction = this.config.sortBy.find(
+        (sort) => Object.keys(sort)[0] === 'personal'
+      )?.direction;
+      if (direction === 'asc') {
+        // prefer not personal over personal
+        return a.personal === b.personal ? 0 : a.personal ? 1 : -1;
+      }
+      if (direction === 'desc') {
+        // prefer personal over not personal
+        return a.personal === b.personal ? 0 : a.personal ? -1 : 1;
+      }
     } else if (field === 'service') {
       // sort files with providers by name
       let aProvider = a.provider?.id;
@@ -1074,6 +1082,14 @@ export class AIOStreams {
       }
       case 'peerflix': {
         return await getPeerflixStreams(
+          this.config,
+          addon.options,
+          streamRequest,
+          addonId
+        );
+      }
+      case 'stremthru-store': {
+        return await getStremThruStoreStreams(
           this.config,
           addon.options,
           streamRequest,
