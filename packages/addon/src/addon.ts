@@ -27,6 +27,7 @@ import {
   torrentioFormat,
   torboxFormat,
   imposterFormat,
+  customFormat,
 } from '@aiostreams/formatters';
 import {
   addonDetails,
@@ -582,7 +583,25 @@ export class AIOStreams {
         return torboxFormat(parsedStream);
       }
       default: {
-        throw new Error('Unsupported formatter');
+        if (
+          this.config.formatter.startsWith('custom:') &&
+          this.config.formatter.length > 7
+        ) {
+          const jsonString = this.config.formatter.slice(7);
+          const formatter = JSON.parse(jsonString);
+          if (formatter.name && formatter.description) {
+            try {
+              return customFormat(parsedStream, formatter);
+            } catch (error: any) {
+              logger.error(
+                `Error in custom formatter: ${error.message || error}, falling back to default formatter`
+              );
+              return gdriveFormat(parsedStream, false);
+            }
+          }
+        }
+
+        return gdriveFormat(parsedStream, false);
       }
     }
   }
