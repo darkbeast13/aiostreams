@@ -22,6 +22,7 @@ export interface ParsedStream extends ParsedNameData {
     name: string;
   };
   filename?: string;
+  folderName?: string;
   message?: string;
   size?: number;
   provider?: {
@@ -158,6 +159,10 @@ export interface Config {
   maxResultsPerResolution: number | null;
   excludeFilters: string[] | null;
   strictIncludeFilters: string[] | null;
+  regexFilters?: {
+    excludePattern?: string;
+    includePattern?: string;
+  };
   mediaFlowConfig?: {
     mediaFlowEnabled: boolean;
     proxyUrl: string;
