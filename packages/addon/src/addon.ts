@@ -54,9 +54,30 @@ export class AIOStreams {
     this.config = config;
     // Pre-compile regex patterns if they exist
     if (this.config.regexSortPatterns) {
-      const regexSortPatterns = this.config.regexSortPatterns.split(/\s+/).filter(Boolean);
-      this.preCompiledRegexPatterns = regexSortPatterns.map(pattern => new RegExp(pattern));
+      const regexSortPatterns = this.config.regexSortPatterns
+        .split(/\s+/)
+        .filter(Boolean);
+      this.preCompiledRegexPatterns = regexSortPatterns.map(
+        (pattern) => new RegExp(pattern)
+      );
     }
+  }
+
+  private async retryGetIp<T>(
+    getter: () => Promise<T | null>,
+    label: string,
+    maxRetries: number = 3
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const result = await getter();
+      if (result) {
+        return result;
+      }
+      logger.warn(
+        `Failed to get ${label}, retrying... (${attempt}/${maxRetries})`
+      );
+    }
+    throw new Error(`Failed to get ${label} after ${maxRetries} attempts`);
   }
 
   private async getRequestingIp() {
@@ -67,43 +88,18 @@ export class AIOStreams {
     if (userIp && PRIVATE_IP_REGEX.test(userIp)) {
       userIp = undefined;
     }
-    const mediaFlowConfig = getMediaFlowConfig(this.config);
-    if (mediaFlowConfig.mediaFlowEnabled) {
-      let mediaFlowIp: string | null = null;
-      // if mediaflow is enabled, we MUST use its IP and throw an error if we can't get it
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        mediaFlowIp = await getMediaFlowPublicIp(
-          mediaFlowConfig,
-          this.config.instanceCache
-        );
-        if (mediaFlowIp) break;
-      }
-      if (!mediaFlowIp) {
-        throw new Error('Failed to get MediaFlow IP after 3 attempts');
-      }
-      if (mediaFlowIp) {
-        userIp = mediaFlowIp;
-      }
-      return userIp;
-    }
+    const mediaflowConfig = getMediaFlowConfig(this.config);
     const stremThruConfig = getStremThruConfig(this.config);
-    if (stremThruConfig.stremThruEnabled) {
-      let stremThruIp: string | null = null;
-      // if stremthru is enabled, we MUST use its IP and throw an error if we can't get it
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        stremThruIp = await getStremThruPublicIp(
-          stremThruConfig,
-          this.config.instanceCache
-        );
-        if (stremThruIp) break;
-      }
-      if (!stremThruIp) {
-        throw new Error('Failed to get StremThru IP after 3 attempts');
-      }
-      if (stremThruIp) {
-        userIp = stremThruIp;
-      }
-      return userIp;
+    if (mediaflowConfig.mediaFlowEnabled) {
+      userIp = await this.retryGetIp(
+        () => getMediaFlowPublicIp(mediaflowConfig, this.config.instanceCache),
+        'MediaFlow public IP'
+      );
+    } else if (stremThruConfig.stremThruEnabled) {
+      userIp = await this.retryGetIp(
+        () => getStremThruPublicIp(stremThruConfig, this.config.instanceCache),
+        'StremThru public IP'
+      );
     }
     return userIp;
   }
@@ -377,22 +373,35 @@ export class AIOStreams {
       // apply regex filters if API key is set
       if (this.config.apiKey && this.config.regexFilters) {
         const { excludePattern, includePattern } = this.config.regexFilters;
-        
+
         if (excludePattern) {
           const regexExclude = new RegExp(excludePattern, 'i');
-          if (parsedStream.filename && safeRegexTest(regexExclude, parsedStream.filename)) {
+          if (
+            parsedStream.filename &&
+            safeRegexTest(regexExclude, parsedStream.filename)
+          ) {
             skipReasons.excludeRegex++;
             return false;
           }
-          if (parsedStream.indexers && safeRegexTest(regexExclude, parsedStream.indexers)) {
+          if (
+            parsedStream.indexers &&
+            safeRegexTest(regexExclude, parsedStream.indexers)
+          ) {
             skipReasons.excludeRegex++;
             return false;
           }
         }
-        
+
         if (includePattern) {
           const regexInclude = new RegExp(includePattern, 'i');
-          if (!((parsedStream.filename && safeRegexTest(regexInclude, parsedStream.filename)) || (parsedStream.indexers && safeRegexTest(regexInclude, parsedStream.indexers)))) {
+          if (
+            !(
+              (parsedStream.filename &&
+                safeRegexTest(regexInclude, parsedStream.filename)) ||
+              (parsedStream.indexers &&
+                safeRegexTest(regexInclude, parsedStream.indexers))
+            )
+          ) {
             skipReasons.requiredRegex++;
             return false;
           }
@@ -677,7 +686,11 @@ export class AIOStreams {
     // Identify streams that require proxying
     const streamsToProxy = parsedStreams
       .map((stream, index) => ({ stream, index }))
-      .filter(({ stream }) => stream.url && this.shouldProxyStream(stream, mediaFlowConfig, stremThruConfig));
+      .filter(
+        ({ stream }) =>
+          stream.url &&
+          this.shouldProxyStream(stream, mediaFlowConfig, stremThruConfig)
+      );
 
     const proxiedUrls = streamsToProxy.length
       ? mediaFlowConfig.mediaFlowEnabled
@@ -795,18 +808,20 @@ export class AIOStreams {
       );
     } else if (field === 'regexSort') {
       if (!this.config.regexSortPatterns) return 0;
-      
+
       try {
         for (let i = 0; i < this.preCompiledRegexPatterns.length; i++) {
           const regex = this.preCompiledRegexPatterns[i];
           const aMatch = a.filename ? safeRegexTest(regex, a.filename) : false;
           const bMatch = b.filename ? safeRegexTest(regex, b.filename) : false;
-          
+
           // If both match or both don't match, continue to next pattern
           if ((aMatch && bMatch) || (!aMatch && !bMatch)) continue;
-          
+
           // If one matches and the other doesn't, use direction to determine order
-          const direction = this.config.sortBy.find((sort) => Object.keys(sort)[0] === 'regexSort')?.direction;
+          const direction = this.config.sortBy.find(
+            (sort) => Object.keys(sort)[0] === 'regexSort'
+          )?.direction;
           if (direction === 'asc') {
             // In ascending order, matching files come last
             return aMatch ? 1 : -1;
@@ -815,7 +830,7 @@ export class AIOStreams {
             return aMatch ? -1 : 1;
           }
         }
-        
+
         // If we get here, no patterns matched or all patterns matched the same way
         return 0;
       } catch (e) {
