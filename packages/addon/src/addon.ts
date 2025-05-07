@@ -356,45 +356,29 @@ export class AIOStreams {
       }
 
       // generate array of excludeTests. for each regex, only add to array if the filename or indexers are defined
-      let excludeTests = [];
-      let requiredTests = [];
+      let excludeTests: (boolean | null)[] = [];
+      let requiredTests: (boolean | null)[] = [];
 
-      if (parsedStream.filename) {
-        excludeTests.push(
-          excludeRegex
-            ? safeRegexTest(excludeRegex, parsedStream.filename)
-            : null,
-          excludeKeywordsRegex
-            ? safeRegexTest(excludeKeywordsRegex, parsedStream.filename)
-            : null
-        );
-        requiredTests.push(
-          requiredRegex
-            ? safeRegexTest(requiredRegex, parsedStream.filename)
-            : null,
-          requiredKeywordsRegex
-            ? safeRegexTest(requiredKeywordsRegex, parsedStream.filename)
-            : null
-        );
-      }
-      if (parsedStream.indexers) {
-        excludeTests.push(
-          excludeRegex
-            ? safeRegexTest(excludeRegex, parsedStream.indexers)
-            : null,
-          excludeKeywordsRegex
-            ? safeRegexTest(excludeKeywordsRegex, parsedStream.indexers)
-            : null
-        );
-        requiredTests.push(
-          requiredRegex
-            ? safeRegexTest(requiredRegex, parsedStream.indexers)
-            : null,
-          requiredKeywordsRegex
-            ? safeRegexTest(requiredKeywordsRegex, parsedStream.indexers)
-            : null
-        );
-      }
+      const addToTests = (field: string | undefined) => {
+        if (field) {
+          excludeTests.push(
+            excludeRegex ? safeRegexTest(excludeRegex, field) : null,
+            excludeKeywordsRegex
+              ? safeRegexTest(excludeKeywordsRegex, field)
+              : null
+          );
+          requiredTests.push(
+            requiredRegex ? safeRegexTest(requiredRegex, field) : null,
+            requiredKeywordsRegex
+              ? safeRegexTest(requiredKeywordsRegex, field)
+              : null
+          );
+        }
+      };
+
+      addToTests(parsedStream.filename);
+      addToTests(parsedStream.folderName);
+      addToTests(parsedStream.indexers);
 
       // filter out any null values as these are when the regex is not defined
       excludeTests = excludeTests.filter((test) => test !== null);
