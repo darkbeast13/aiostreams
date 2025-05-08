@@ -566,4 +566,34 @@ export const Settings = cleanEnv(process.env, {
 
   // StremThru Store settings
   STREMTHRU_STORE_URL: url({
-    default: '
+    default: 'https://stremthru.elfhosted.com/stremio/store/',
+    desc: 'StremThru Store URL',
+  }),
+  DEFAULT_STREMTHRU_STORE_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default StremThru Store timeout',
+  }),
+  DEFAULT_STREMTHRU_STORE_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default StremThru Store user agent',
+  }),
+
+  // DMM Cast settings
+  DEFAULT_DMM_CAST_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default DMM Cast timeout',
+  }),
+  DEFAULT_DMM_CAST_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default DMM Cast user agent',
+  }),
+  // GDrive settings
+  DEFAULT_GDRIVE_TIMEOUT: num({
+    default: undefined,
+    desc: 'Default GDrive timeout',
+  }),
+  DEFAULT_GDRIVE_USER_AGENT: userAgent({
+    default: undefined,
+    desc: 'Default GDrive user agent',
+  }),
+});
